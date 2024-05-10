@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:simple_animation_progress_bar/simple_animation_progress_bar.dart';
 
 
@@ -43,15 +45,6 @@ class MyApp extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
   final String title;
 
   @override
@@ -59,37 +52,66 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-Duration durer = Duration(seconds: 4);
-Duration durerEnd = Duration(seconds: 17);
-int a = 0;
+Duration durer = Duration(seconds: 2);
+Duration durerEnd = Duration(seconds: 16);
+String text = '';
+List<dynamic> items = [];
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    periodicCode(durer, durerEnd);
+
+  }
 
   @override
   Widget build(BuildContext context) {
-
-    periodicCode(durer, durerEnd);
     return Scaffold(
       appBar: AppBar(
         title: Text('Progress bar'),
       ),
-      body: Column(
-        children: [
-          Center(
-            child: SimpleAnimationProgressBar(
-              height: 10,
-              width: 300,
-              backgroundColor: Colors.grey,
-              foregrondColor: Colors.green,
-              ratio: 1,
-              direction: Axis.horizontal,
-              curve: Curves.fastLinearToSlowEaseIn,
-              duration: const Duration(seconds: 15),
-              borderRadius: BorderRadius.circular(10),
+      body: Center(
+        child: SingleChildScrollView(
+          child: Container(
+            margin: EdgeInsets.only(top: 100),
+            height: 800,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Center(
+                  child: SimpleAnimationProgressBar(
+                    height: 30,
+                    width: 300,
+                    backgroundColor: Colors.grey,
+                    foregrondColor: Colors.green,
+                    ratio: 1,
+                    direction: Axis.horizontal,
+                    curve: Curves.fastLinearToSlowEaseIn,
+                    duration: const Duration(seconds: 15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                SizedBox(
+                  height: 50,
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    padding: EdgeInsets.only(left: 25,right: 25),
+                    separatorBuilder: (context, index) => Divider(height: 20, color: Colors.green,),
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        title: Text('${items[index]}'),
+        
+                      );
+                    },
+                    itemCount: items.length,
+                  ),
+                )
+              ],
             ),
           ),
-          Center(
-            child: Text('$a'),
-          )
-        ],
+        ),
       ),
     );
   }
@@ -97,13 +119,32 @@ int a = 0;
 
   void periodicCode(Duration periodicDuration, Duration endTimer) {
 
-    Timer timer1 = Timer.periodic(periodicDuration, (timer) {
-      print(DateTime.now());
+    var counter = 5;
+
+    // immediately
+    Timer(Duration(seconds: 0), () {
+      print("This line is printed immediately");
+      setState(() {
+        text = 'Bonjour';
+        items.add(text);
+        print(items);
+      });
     });
-    print(timer1.isActive);
-    Future.delayed(endTimer, () {
-      timer1.cancel();
-      print(timer1.isActive);
+
+
+    //periodic
+    Timer.periodic(const Duration(seconds: 10), (timer) {
+      print(timer.tick);
+      counter--;
+      setState(() {
+        text = 'Bonjour';
+        items.add(text);
+        print(items);
+      });
+      if (counter == 0) {
+        print('Cancel timer');
+        timer.cancel();
+      }
     });
   }
 
