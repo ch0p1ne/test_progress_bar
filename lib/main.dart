@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'package:simple_animation_progress_bar/simple_animation_progress_bar.dart';
+import 'package:step_progress_indicator/step_progress_indicator.dart';
 
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
@@ -52,17 +55,24 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-Duration durer = Duration(seconds: 2);
-Duration durerEnd = Duration(seconds: 16);
-String text = '';
-List<dynamic> items = [];
+  Duration durer = Duration(seconds: 2);
+  Duration durerEnd = Duration(seconds: 16);
+  String text = '';
+  List<dynamic> items = [];
+  double currentStep = 0.0;
+  dynamic dataWeather;
+
+  String appId = '4b474d97362c293c477bf5e0efc82840';
+  List<String> location = ['London', 'France', 'Senegal', 'Maroc', 'Italy'];
+  String currentLimit = '1';
+  int locationLimit = 0;
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     periodicCode(durer, durerEnd);
-
+    print(location[locationLimit]);
   }
 
   @override
@@ -80,16 +90,30 @@ List<dynamic> items = [];
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Center(
-                  child: SimpleAnimationProgressBar(
-                    height: 30,
-                    width: 300,
-                    backgroundColor: Colors.grey,
-                    foregrondColor: Colors.green,
-                    ratio: 1,
-                    direction: Axis.horizontal,
-                    curve: Curves.fastLinearToSlowEaseIn,
-                    duration: const Duration(seconds: 15),
-                    borderRadius: BorderRadius.circular(10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      StepProgressIndicator(
+                        totalSteps: 100,
+                        currentStep: currentStep.floor(),
+                        size: 16,
+                        padding: 0,
+                        selectedColor: Colors.green,
+                        unselectedColor: Colors.grey.shade300,
+                        roundedEdges: Radius.circular(15),
+                      ),
+                      SizedBox(
+                        width: 50,
+                      ),
+                      Container(
+                        child: Text(
+                          currentStep.floor().toString() + ' %',
+                          style: TextStyle(
+                            fontSize: 24,
+                          ),
+                        ),
+                      )
+                    ],
                   ),
                 ),
                 SizedBox(
@@ -97,15 +121,25 @@ List<dynamic> items = [];
                 ),
                 Expanded(
                   child: ListView.separated(
-                    padding: EdgeInsets.only(left: 25,right: 25),
-                    separatorBuilder: (context, index) => Divider(height: 20, color: Colors.green,),
+                    padding: EdgeInsets.only(left: 25, right: 25),
+                    separatorBuilder: (context, index) => Divider(
+                      height: 20,
+                      color: Colors.green,
+                    ),
                     itemBuilder: (context, index) {
                       return ListTile(
-                        title: Text('${items[index]}'),
-        
+                        title: Row(
+                          children: [
+                            Text('${items[index]['name']}'),
+                            SizedBox(
+                              width: 10,
+                            ),
+                            Text(' LAT : ${items[index]['lat']}'),
+                          ],
+                        ),
                       );
                     },
-                    itemCount: items.length,
+                    itemCount: dataWeather == null ? 0 : items.length,
                   ),
                 )
               ],
@@ -116,36 +150,70 @@ List<dynamic> items = [];
     );
   }
 
-
-  void periodicCode(Duration periodicDuration, Duration endTimer) {
-
+  void periodicCode(Duration periodicDuration, Duration endTimer) async {
     var counter = 5;
+    var counterProgressBar = 60;
+    Uri url = Uri.https('api.openweathermap.org', '/geo/1.0/direct', {
+      'q': '${location[locationLimit]}',
+      'limit': '$currentLimit',
+      'appid': '$appId'
+    });
+    locationLimit++;
+    var response = await http.get(url);
 
     // immediately
     Timer(Duration(seconds: 0), () {
       print("This line is printed immediately");
       setState(() {
-        text = 'Bonjour';
-        items.add(text);
-        print(items);
+        if (response.statusCode == 200) {
+          dataWeather = jsonDecode(response.body) as List<dynamic>;
+          items.addAll(dataWeather);
+        } else {
+          print('Resquest failed with status : ${response.statusCode}');
+        }
       });
     });
 
-
     //periodic
-    Timer.periodic(const Duration(seconds: 10), (timer) {
+    Timer.periodic(const Duration(seconds: 10), (timer) async {
       print(timer.tick);
       counter--;
+      if (locationLimit <= location.length) {
+        url = Uri.https('api.openweathermap.org', '/geo/1.0/direct', {
+          'q': '${location[locationLimit]}',
+          'limit': '$currentLimit',
+          'appid': '$appId'
+        });
+        response = await http.get(url);
+        locationLimit++;
+
+        setState(() {
+          print(url);
+          if (response.statusCode == 200) {
+            dataWeather = jsonDecode(response.body) as List<dynamic>;
+            items.addAll(dataWeather);
+          } else {
+            print('Resquest failed with status : ${response.statusCode}');
+          }
+        });
+      }
+      if (counter == 0) {
+        print('Cancel timer for api call');
+        timer.cancel();
+      }
+    });
+
+    //periodic timer for progress bar
+    Timer.periodic(const Duration(seconds: 2), (timer) {
+      print(timer.tick);
+      counterProgressBar = counterProgressBar - 2;
       setState(() {
-        text = 'Bonjour';
-        items.add(text);
-        print(items);
+        currentStep = currentStep + 4;
       });
       if (counter == 0) {
-        print('Cancel timer');
+        print('Cancel timer for progress bar');
         timer.cancel();
       }
     });
   }
-
 }
